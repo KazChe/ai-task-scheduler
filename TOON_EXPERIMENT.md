@@ -1,134 +1,177 @@
+# TOON vs JSON
 
-# 📘 README: TOON vs JSON
+### _A Real World, No Hype Benchmark on Token Efficiency for LLM Applications_
 
-### *Practical Token Efficiency Benchmarking for LLM Applications*
+This repo contains an experiment comparing **TOON (Token-Oriented Object Notation)** against **JSON** in an LLM task-scheduling assistant built using gpt-4o-mini.
 
-This repository contains a real-world evaluation of **TOON (Token-Oriented Object Notation)** compared to **JSON** for use in LLM agent contexts — specifically a task scheduling workflow using GPT-4o-mini.
+The question was simple:
 
-The goal was simple:
+> **Would TOON reduce token usage (and thus cost) enough to justify switching from JSON?**
 
-> **Does TOON meaningfully reduce tokens and cost enough to justify using it over JSON?**
+No enterprise funded compute clusters.
+No 10000-run statistical regressions.
+Just one human+self, curiosity, and an ear-ache. _(0/10 — would not recommend as a productivity hack.)_
 
-It was a dark and stormy night....No, it wasn't. 
-I approached this without enterprise resources - just curiosity, an ear-ache, and a controlled experiment.
+The experiment emerged from building a tiny follow up reminder AI that writes to my or even your Google Calendar. Somewhere between ~~painkillers~~ antibiotics and suffering from being severly-online, I came across TOON. TOON is a compact serialization format claiming ~40% token savings.
 
----
+Thought to myself:
 
-## 🔬 Test Scenarios
+> “Hell yeah, let’s make this thing more efficient.”
+> Spoiler: **The answer was more nuanced than that.**
 
-| # | Scenario              | Description                                                  |
-| - | --------------------- | ------------------------------------------------------------ |
-| 1 | Single Task           | Typical scheduling request (title, desc, priority, duration) |
-| 2 | Multiple Simple Tasks | 3 small tasks with uniform structure                         |
-| 3 | Large Dataset         | 20 tasks w/ metadata, tags, varied fields                    |
-| 4 | Deeply Nested Object  | Project → team → subtasks → config                           |
-| 5 | Repeated Structures   | 50 user profiles w/ consistent schema                        |
-| 6 | Real LLM Completion   | JSON vs TOON system response formatting                      |
-
-We measured:
-
-* Estimated token count (chars ÷ 4 heuristic)
-* Actual token usage via OpenAI API
-* Cost projections using GPT-4o-mini pricing
+As a sage I know always says, **"The answer to everything is, it depends"**
 
 ---
 
-## 📊 Results Summary
+## Before we dive into results — important context
 
-### **TOON only outperformed JSON in one case** — small *uniform* task lists.
+The great people/maintainers of TOON are very upfront about when it should _not_ be used.
+Directly from the official documentation:
 
-| Scenario                  | JSON Tokens | TOON Tokens | Winner               |
-| ------------------------- | ----------- | ----------- | -------------------- |
-| 1. Single Task            | 90          | 88          | **Tie / negligible** |
-| 2. 3 Simple Tasks         | 115         | 72          | **TOON (+37.4%)**    |
-| 3. 20 Complex Tasks       | 2449        | 2510        | JSON                 |
-| 4. Nested Object          | 328         | 324         | Tie (1% diff)        |
-| 5. 50 Repeated Structures | 4099        | 4888        | JSON (-19.2%)        |
-| 6. Real LLM Completion    | 146         | 155         | JSON                 |
+### **TOON is _not ideal_ for:**
 
-> **TOON shines in flat, uniform structured data.
-> JSON is more compact & predictable for task-based LLM workflows.**
+- Structurally complex payloads
+- Highly nested or heterogeneous data
+- Formats where readability & debugging matter more than bytes
 
----
+This aligns almost perfectly with what my experiment showed. Yes, I was bored, in pain and this was a a good idea thought me.
 
-## 📈 Visual Findings
+On the other hand —
 
-### ASCII quick-read chart
+### **TOON _can_ outperform JSON when:**
 
-```
-Token Usage Comparison (Lower = Better)
-──────────────────────────────────────────────
-Scenario                 JSON     TOON
-──────────────────────────────────────────────
-Single Task              ███      ███
-3 Uniform Tasks          ██████   ███
-20 Complex Tasks         ███████████████████████
-                         ████████████████████████
-Nested Object            ████     ███
-50 Repeated Structures   ███████████████████████████
-                         ███████████████████████████████
-Real LLM Completion      ████     █████
-──────────────────────────────────────────────
-```
+- Data is **uniform, tabular, repetitive**
+- You are transferring **lists of similar objects**
+- The goal is **minimal overhead, maximum compression**
 
-### PNG-style high-contrast version (for repo README)
+And in _one_ of my tests — TOON crushed it.
 
-Use this block as an **image panel** in your README — you can copy/paste it into Canva, Excalidraw, or Mermaid to export a PNG.
+So this README is not _TOON bad, JSON good_.
+It’s:
 
-```
-┌────────────────────────────────────────────────────────┐
-│                TOKEN USAGE COMPARISON                  │
-│              (Lower bars = more efficient)             │
-├────────────────────────────────────────────────────────┤
-│ Single Task              JSON ▓▓▓▓▓   TOON ▓▓▓▓▓       │
-│ 3 Simple Tasks           JSON ▓▓▓▓▓▓▓▓▓▓▓              │
-│                         TOON ▓▓▓▓                      │
-│ 20 Complex Tasks         JSON ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓          │
-│                         TOON ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓         │
-│ Nested Objects           JSON ▓▓▓▓▓▓                   │
-│                         TOON ▓▓▓▓                      │
-│ 50 Repeated Structures   JSON ▓▓▓▓▓▓▓▓▓▓▓▓▓▓           │
-│                         TOON ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓         │
-│ Real LLM Completion      JSON ▓▓▓▓▓▓                   │
-│                         TOON ▓▓▓▓▓▓▓▓                  │
-└────────────────────────────────────────────────────────┘
-```
+### **Use JSON by default, TOON when the shape of your data earns it.**
 
-If you'd like, I can generate a **real PNG image file for you automatically** — just say *"generate PNG"*.
+# 📊 TOON vs JSON Token Efficiency Benchmark
+
+## 1) Single Task Comparison
+
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  Single Task — JSON vs TOON                                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+JSON Format:
+SCHEDULE_TASK:{"title":"Test Number One","description":"Thing number one, which is a test\nThing number two...","priority":"medium","estimatedDuration":60,"preferredStartDate":"2025-12-05T17:00:00Z"}
+Token estimate: 90
+
+TOON Format:
+SCHEDULE_TASK:
+title: Test Number One
+description: "... same text ..."
+priority: medium
+estimatedDuration: 60
+preferredStartDate: "2025-12-05T17:00:00Z"
+Token estimate: 88
+
+Savings: 2 tokens (2.2%)
+
+Round-trip TOON encode → decode → encode = ✔ matches
+</pre>
 
 ---
 
-## 🧭 When TOON *is* worth using
+## 2) Three-task Batch (TOON shines)
 
-| Good use cases        | Why                           |
-| --------------------- | ----------------------------- |
-| Batch imports         | Tokens saved scale with count |
-| Uniform tabular data  | No repeated keys              |
-| Streaming logs/events | Lightweight data frames       |
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  Multi-task batch (3 items)                                      ║
+╚══════════════════════════════════════════════════════════════════╝
 
-TOON is smart — **when the problem matches the format**.
+JSON Tasks: 115 tokens  
+TOON Tasks: 72 tokens
 
----
-
-## 📌 Conclusion
-
-> **JSON remains the more cost-efficient default**
-> for heterogeneous LLM tasks like scheduling, planning, or workflow automation.
-
-> **TOON is a niche performance tool**, best applied when structure is simple, repeated, and large in volume.
-
-Both have their place.
+Savings: 43 tokens (37.4%)
+NOTE: This is where TOON is most effective — small, uniform structures.
+</pre>
 
 ---
 
-If you'd like, I can now:
+## 3) 20-task Complex Dataset
 
-### 🔥 generate a **beautiful PNG chart automatically**
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  Large dataset (20 structured tasks)                            ║
+╚══════════════════════════════════════════════════════════════════╝
 
-→ ready to embed in README, pinned repo, or LinkedIn/Medium/Hashnode.
+JSON: 2449 tokens  
+TOON: 2510 tokens
 
-Just reply:
+❌ JSON is more compact here (TOON +2.5%)
+</pre>
 
-### **`generate PNG chart`**
+---
 
-and I’ll produce it.
+## 4) Deeply Nested Structure
+
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  Nested object comparison                                        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+JSON: 328 tokens  
+TOON: 324 tokens
+
+≈ Negligible difference
+</pre>
+
+---
+
+## 5) Repeated Structure Test (50 items)
+
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  50 record repeated-structure test                               ║
+╚══════════════════════════════════════════════════════════════════╝
+
+JSON: 4099 tokens  
+TOON: 4888 tokens
+
+❌ JSON is ~19% more efficient in large repeated data
+</pre>
+
+---
+
+## 6) Real LLM Output Token Usage
+
+<pre style="white-space:pre; overflow-x:auto;">
+╔══════════════════════════════════════════════════════════════════╗
+║  LLM-formatting test (OpenAI GPT-4o-mini)                        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+JSON Response → 146 tokens  
+TOON Response → 155 tokens
+
+❌ JSON cheaper for real LLM generation (-6.2%)
+</pre>
+
+---
+
+### Final Summary
+
+<pre style="white-space:pre; overflow-x:auto;">
+TOON wins only in small uniform task batches (≈ 37% savings)
+
+JSON wins for:
+  • Larger datasets
+  • Mixed or nested structures
+  • LLM output formatting
+  • Real cost efficiency
+
+Conclusion: JSON remains default; TOON is a niche optimization tool.
+</pre>
+
+---
+
+__For TOON, start here:__
+[When Not to Use TOON](https://github.com/toon-format/toon?tab=readme-ov-file#when-not-to-use-toon)
+
