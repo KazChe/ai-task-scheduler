@@ -1,14 +1,38 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { TaskDatabase } from '../db/database';
+import { ChatOllama } from '@langchain/ollama';
+import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import { GoogleCalendarService } from '../services/calendar';
-import { Task, TaskInput } from '../types';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+type LLM = ChatOpenAI | ChatOllama;
+
+function createLLM(): LLM {
+  const provider = process.env.LLM_PROVIDER || 'openai';
+
+  if (provider === 'ollama') {
+    return new ChatOllama({
+      baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+      model: process.env.OLLAMA_MODEL || 'qwen3:8b',
+    });
+  }
+
+  return new ChatOpenAI({
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    modelName: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    temperature: 0.7
+  });
+}
 
 export class TaskSchedulingAgent {
-  private llm: ChatOpenAI;
-  private db: TaskDatabase;
+  private llm: LLM;
   private calendar: GoogleCalendarService;
-  private conversationHistory: any[] = [];
+  private conversationHistory: BaseMessage[] = [];
+  private chatHistory: ChatMessage[] = [];
   private tokenUsageStats = {
     totalPromptTokens: 0,
     totalCompletionTokens: 0,
@@ -16,13 +40,8 @@ export class TaskSchedulingAgent {
     requestCount: 0
   };
 
-  constructor(db: TaskDatabase, calendar: GoogleCalendarService) {
-    this.llm = new ChatOpenAI({
-      openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      temperature: 0.7
-    });
-    this.db = db;
+  constructor(calendar: GoogleCalendarService) {
+    this.llm = createLLM();
     this.calendar = calendar;
 
     // Initialize with system message
@@ -122,7 +141,7 @@ Be conversational, helpful, and decisive. Trust your judgment.`)
   async processMessage(userMessage: string): Promise<string> {
     // Add user message to history
     this.conversationHistory.push(new HumanMessage(userMessage));
-    this.db.saveChatMessage({ role: 'user', content: userMessage });
+    this.chatHistory.push({ role: 'user', content: userMessage, timestamp: new Date() });
 
     // Get LLM response
     const response = await this.llm.invoke(this.conversationHistory);
@@ -197,7 +216,7 @@ Be conversational, helpful, and decisive. Trust your judgment.`)
 
     // Add assistant response to history
     this.conversationHistory.push(new AIMessage(assistantMessage));
-    this.db.saveChatMessage({ role: 'assistant', content: assistantMessage });
+    this.chatHistory.push({ role: 'assistant', content: assistantMessage, timestamp: new Date() });
 
     return assistantMessage;
   }
@@ -209,7 +228,7 @@ Be conversational, helpful, and decisive. Trust your judgment.`)
     deadline?: Date;
     preferredStartDate?: Date;
     estimatedDuration?: number;
-  }): Promise<{ task: Task; message: string }> {
+  }): Promise<{ message: string; eventId: string; eventLink: string }> {
     try {
       console.log('📅 Creating task:', taskData);
 
@@ -270,37 +289,22 @@ Be conversational, helpful, and decisive. Trust your judgment.`)
         duration: `${duration} mins`
       });
 
-      const task = this.db.createTask({
-        ...taskData,
-        status: 'pending',
-        scheduledStartTime: startTime,
-        scheduledEndTime: endTime
-      });
-
-      console.log('💾 Task saved to DB:', task.id);
-
       // Create Google Calendar event
       console.log('📤 Creating Google Calendar event...');
       console.log('📝 Event details:', {
-        title: task.title,
-        description: task.description,
-        hasDescription: !!task.description
+        title: taskData.title,
+        description: taskData.description,
+        hasDescription: !!taskData.description
       });
 
       const eventResult = await this.calendar.createEvent(
-        task.title,
-        task.description || '',
+        taskData.title,
+        taskData.description || '',
         startTime,
         endTime
       );
 
       console.log('✅ Calendar event created:', eventResult.id);
-
-      // Update task with calendar event ID
-      const updatedTask = this.db.updateTask(task.id!, {
-        status: 'scheduled',
-        calendarEventId: eventResult.id
-      });
 
       const scheduledTime = startTime.toLocaleString('en-US', {
         weekday: 'short',
@@ -310,11 +314,12 @@ Be conversational, helpful, and decisive. Trust your judgment.`)
         minute: '2-digit'
       });
 
-      const message = `Task "${task.title}" scheduled for ${scheduledTime} (${duration} minutes)\n\nView event: ${eventResult.link}`;
+      const message = `Task "${taskData.title}" scheduled for ${scheduledTime} (${duration} minutes)\n\nView event: ${eventResult.link}`;
 
       return {
-        task: updatedTask!,
-        message
+        message,
+        eventId: eventResult.id,
+        eventLink: eventResult.link
       };
     } catch (error) {
       console.error('❌ Error creating task:', error);
@@ -349,12 +354,14 @@ Please ask them to describe what specifically they want to do with this content.
   }
 
   clearHistory() {
-    this.conversationHistory = [];
-    this.db.clearChatHistory();
+    // Keep system message, clear the rest
+    const systemMessage = this.conversationHistory[0];
+    this.conversationHistory = systemMessage ? [systemMessage] : [];
+    this.chatHistory = [];
   }
 
   getHistory() {
-    return this.db.getChatHistory();
+    return this.chatHistory;
   }
 
   getTokenUsageStats() {

@@ -1,12 +1,10 @@
 import { Router } from 'express';
 import { TaskSchedulingAgent } from '../agents/taskAgent';
 import { GoogleCalendarService } from '../services/calendar';
-import { TaskDatabase } from '../db/database';
 
 export function createApiRouter(
   agent: TaskSchedulingAgent,
-  calendar: GoogleCalendarService,
-  db: TaskDatabase
+  calendar: GoogleCalendarService
 ) {
   const router = Router();
 
@@ -49,7 +47,7 @@ export function createApiRouter(
     }
   });
 
-  // Create and schedule task
+  // Create and schedule task (directly to Google Calendar)
   router.post('/tasks', async (req, res) => {
     try {
       const taskData = req.body;
@@ -63,73 +61,6 @@ export function createApiRouter(
     } catch (error) {
       console.error('Task creation error:', error);
       res.status(500).json({ error: 'Failed to create task' });
-    }
-  });
-
-  // Get all tasks
-  router.get('/tasks', (req, res) => {
-    try {
-      const { status } = req.query;
-      const tasks = db.getAllTasks(status as string);
-      res.json({ tasks });
-    } catch (error) {
-      console.error('Get tasks error:', error);
-      res.status(500).json({ error: 'Failed to fetch tasks' });
-    }
-  });
-
-  // Get task by ID
-  router.get('/tasks/:id', (req, res) => {
-    try {
-      const task = db.getTaskById(parseInt(req.params.id));
-      if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-      }
-      res.json({ task });
-    } catch (error) {
-      console.error('Get task error:', error);
-      res.status(500).json({ error: 'Failed to fetch task' });
-    }
-  });
-
-  // Update task
-  router.patch('/tasks/:id', (req, res) => {
-    try {
-      const updates = req.body;
-      if (updates.deadline) updates.deadline = new Date(updates.deadline);
-      if (updates.preferredStartDate) updates.preferredStartDate = new Date(updates.preferredStartDate);
-      if (updates.scheduledStartTime) updates.scheduledStartTime = new Date(updates.scheduledStartTime);
-      if (updates.scheduledEndTime) updates.scheduledEndTime = new Date(updates.scheduledEndTime);
-
-      const task = db.updateTask(parseInt(req.params.id), updates);
-      if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-      }
-      res.json({ task });
-    } catch (error) {
-      console.error('Update task error:', error);
-      res.status(500).json({ error: 'Failed to update task' });
-    }
-  });
-
-  // Delete task
-  router.delete('/tasks/:id', async (req, res) => {
-    try {
-      const task = db.getTaskById(parseInt(req.params.id));
-      if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-      }
-
-      // Delete from calendar if scheduled
-      if (task.calendarEventId) {
-        await calendar.deleteEvent(task.calendarEventId);
-      }
-
-      db.deleteTask(parseInt(req.params.id));
-      res.json({ message: 'Task deleted' });
-    } catch (error) {
-      console.error('Delete task error:', error);
-      res.status(500).json({ error: 'Failed to delete task' });
     }
   });
 

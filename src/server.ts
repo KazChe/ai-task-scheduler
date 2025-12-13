@@ -3,7 +3,6 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { createConnection } from 'net';
-import { TaskDatabase } from './db/database';
 import { GoogleCalendarService } from './services/calendar';
 import { TaskSchedulingAgent } from './agents/taskAgent';
 import { createApiRouter } from './routes/api';
@@ -20,17 +19,16 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Initialize services
-const db = new TaskDatabase(process.env.DB_PATH);
 const calendar = new GoogleCalendarService();
 
 // Try to load saved credentials
 calendar.loadSavedCredentials();
 
 // Initialize agent
-const agent = new TaskSchedulingAgent(db, calendar);
+const agent = new TaskSchedulingAgent(calendar);
 
 // API routes
-app.use('/api', createApiRouter(agent, calendar, db));
+app.use('/api', createApiRouter(agent, calendar));
 
 // Serve index.html for root
 app.get('/', (req, res) => {
@@ -40,7 +38,7 @@ app.get('/', (req, res) => {
 // Function to check if a port is available
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const tester = createConnection({ port, host: 'localhost' })
+    const tester = createConnection({ port, host: '0.0.0.0' })
       .once('error', (err: any) => {
         if (err.code === 'ECONNREFUSED') {
           // Port is not in use
@@ -130,12 +128,10 @@ async function startServer(port: number): Promise<void> {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
-  db.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('\nShutting down gracefully...');
-  db.close();
   process.exit(0);
 });
