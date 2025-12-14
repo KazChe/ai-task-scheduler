@@ -52,6 +52,24 @@ export class GoogleCalendarService {
     return false;
   }
 
+  disconnect(): boolean {
+    try {
+      // Clear credentials from OAuth client
+      this.oauth2Client.setCredentials({});
+
+      // Delete token file if it exists
+      if (fs.existsSync(this.tokenPath)) {
+        fs.unlinkSync(this.tokenPath);
+        console.log('Token file deleted successfully');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error disconnecting:', error);
+      return false;
+    }
+  }
+
   isAuthenticated(): boolean {
     const credentials = this.oauth2Client.credentials;
     return !!credentials && !!credentials.access_token;

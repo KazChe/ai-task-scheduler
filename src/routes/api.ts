@@ -89,6 +89,20 @@ export function createApiRouter(
     res.json({ authenticated: calendar.isAuthenticated() });
   });
 
+  router.delete('/auth/google', (req, res) => {
+    try {
+      const success = calendar.disconnect();
+      if (success) {
+        res.json({ message: 'Disconnected successfully' });
+      } else {
+        res.status(500).json({ error: 'Failed to disconnect' });
+      }
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      res.status(500).json({ error: 'Failed to disconnect' });
+    }
+  });
+
   // Get token usage statistics
   router.get('/stats/tokens', (req, res) => {
     try {

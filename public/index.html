@@ -248,12 +248,14 @@
 
                 if (data.authenticated) {
                     statusIndicator.classList.add('connected');
-                    authBtn.textContent = 'Connected';
-                    authBtn.disabled = true;
+                    authBtn.textContent = 'Disconnect';
+                    authBtn.disabled = false;
+                    authBtn.onclick = disconnectCalendar;
                 } else {
                     statusIndicator.classList.remove('connected');
                     authBtn.textContent = 'Connect Calendar';
                     authBtn.disabled = false;
+                    authBtn.onclick = connectCalendar;
                 }
             } catch (error) {
                 console.error('Error checking auth status:', error);
@@ -278,6 +280,21 @@
             } catch (error) {
                 console.error('Error connecting calendar:', error);
                 addMessage('assistant', 'Failed to connect to Google Calendar. Please try again.');
+            }
+        }
+
+        async function disconnectCalendar() {
+            try {
+                const response = await fetch('/api/auth/google', { method: 'DELETE' });
+                if (response.ok) {
+                    await checkAuthStatus();
+                    addMessage('assistant', 'Google Calendar disconnected. Click "Connect Calendar" to reconnect.');
+                } else {
+                    addMessage('assistant', 'Failed to disconnect. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error disconnecting calendar:', error);
+                addMessage('assistant', 'Failed to disconnect. Please try again.');
             }
         }
 
@@ -367,9 +384,8 @@
         });
 
         sendBtn.addEventListener('click', sendMessage);
-        authBtn.addEventListener('click', connectCalendar);
 
-        // Check auth status on load
+        // Check auth status on load (this sets up the correct click handler)
         checkAuthStatus();
     </script>
 </body>
