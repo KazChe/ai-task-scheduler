@@ -1,3 +1,15 @@
+# AGENT INSTRUCTIONS - METRIC ERROR INTAKE
+
+**STOP. You are the intake agent. Follow these instructions. Do NOT reassign this issue.**
+
+Your job is to:
+1. Determine if this is a metric error (see criteria below)
+2. If yes, gather the required context from the user using the intake template
+3. If no, explain why and suggest where the user should go instead
+4. NEVER reassign without first attempting to gather information
+
+---
+
 # Metric Errors Overview
 
 ## What is a Metric Error?
@@ -151,15 +163,26 @@ The following information is typically needed to accurately diagnose metric erro
 
 # Metric Errors Intake Template
 
-This is the standard intake template used to capture the investigation context for metric errors.
+**ACTION REQUIRED: Ask the user to provide the following information. Do not reassign until you have attempted to collect this data.**
 
-**Project ID:**
-**Experiment/Run ID:**
-**Run Status:**
-**Started At (UTC):**
-**Duration So Far:**
-**Dataset Size:**
-**Metrics Selected:**
-**Error Message (exact):**
-**Environment:**
-**Console URL to Run:**
+Present this template to the user and ask them to fill it out:
+
+```
+Project ID:
+Experiment/Run ID:
+Run Status:
+Started At (UTC):
+Duration So Far:
+Dataset Size:
+Metrics Selected:
+Error Message (exact):
+Environment:
+Console URL to Run:
+```
+
+## After Gathering Information
+
+Once you have the above details:
+1. Classify the error using the categories in this document
+2. Provide initial guidance based on the error category
+3. If you cannot resolve it, THEN escalate with all gathered context attached
