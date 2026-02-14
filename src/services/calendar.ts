@@ -23,6 +23,7 @@ export class GoogleCalendarService {
   getAuthUrl(): string {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
+      prompt: 'consent',
       scope: ['https://www.googleapis.com/auth/calendar']
     });
   }
