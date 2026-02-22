@@ -163,6 +163,37 @@
             transform: none;
         }
 
+        #micBtn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        #micBtn:hover {
+            transform: translateY(-1px);
+        }
+
+        #micBtn.recording {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        #micBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         .loading {
             display: flex;
             gap: 4px;
@@ -229,6 +260,7 @@
                     placeholder="Tell me what you need to do..."
                     autocomplete="off"
                 />
+                <button id="micBtn" title="Voice input">&#x1F3A4;</button>
                 <button id="sendBtn">Send</button>
             </div>
         </div>
@@ -238,8 +270,13 @@
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
         const authBtn = document.getElementById('authBtn');
         const statusIndicator = document.getElementById('statusIndicator');
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
 
         async function checkAuthStatus() {
             try {
@@ -377,6 +414,101 @@
             }
         }
 
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+                mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    await handleVoiceSubmit(audioBlob);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micBtn.title = 'Stop recording';
+                sendBtn.disabled = true;
+                messageInput.disabled = true;
+            } catch (error) {
+                console.error('Microphone access error:', error);
+                addMessage('assistant', 'Microphone access denied. Please allow microphone access and try again.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.title = 'Voice input';
+        }
+
+        async function handleVoiceSubmit(audioBlob) {
+            micBtn.disabled = true;
+            addLoadingIndicator();
+
+            try {
+                // Step 1: Transcribe
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+
+                const transcribeResponse = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const transcribeData = await transcribeResponse.json();
+
+                if (!transcribeResponse.ok) {
+                    removeLoadingIndicator();
+                    addMessage('assistant', transcribeData.error || "Couldn't understand audio, please try again.");
+                    return;
+                }
+
+                // Step 2: Send transcript to existing chat endpoint
+                const chatResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: transcribeData.transcript }),
+                });
+
+                const chatData = await chatResponse.json();
+                removeLoadingIndicator();
+
+                if (chatResponse.ok) {
+                    addMessage('assistant', chatData.response);
+                } else {
+                    addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+                }
+            } catch (error) {
+                console.error('Voice submit error:', error);
+                removeLoadingIndicator();
+                addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+            } finally {
+                micBtn.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
@@ -384,6 +516,7 @@
         });
 
         sendBtn.addEventListener('click', sendMessage);
+        micBtn.addEventListener('click', toggleRecording);
 
         // Check auth status on load (this sets up the correct click handler)
         checkAuthStatus();

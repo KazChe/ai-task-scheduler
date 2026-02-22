@@ -1,6 +1,24 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { TaskSchedulingAgent } from '../agents/taskAgent';
 import { GoogleCalendarService } from '../services/calendar';
+import { transcribeAudio } from '../services/speech';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+const ALLOWED_AUDIO_TYPES = [
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/m4a',
+  'audio/ogg',
+  'audio/x-m4a',
+  'audio/webm;codecs=opus',
+];
 
 export function createApiRouter(
   agent: TaskSchedulingAgent,
@@ -22,6 +40,30 @@ export function createApiRouter(
     } catch (error) {
       console.error('Chat error:', error);
       res.status(500).json({ error: 'Failed to process message' });
+    }
+  });
+
+  // Voice transcription endpoint
+  router.post('/transcribe', upload.single('audio'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No audio file provided' });
+      }
+
+      if (!ALLOWED_AUDIO_TYPES.includes(req.file.mimetype)) {
+        return res.status(415).json({ error: 'Unsupported audio format' });
+      }
+
+      const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
+
+      if (!transcript || transcript.trim().length === 0) {
+        return res.status(400).json({ error: "Couldn't understand audio, please try again" });
+      }
+
+      res.json({ transcript });
+    } catch (error) {
+      console.error('Transcription error:', error);
+      res.status(500).json({ error: 'Transcription failed' });
     }
   });
 
