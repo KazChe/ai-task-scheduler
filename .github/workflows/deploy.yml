@@ -17,6 +17,6 @@ jobs:
           script: |
             cd /root/app
             git pull origin main
-            npm install
+            npm install --legacy-peer-deps
             NODE_OPTIONS="--max-old-space-size=1536" npm run build
             pm2 restart all
