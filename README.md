@@ -8,6 +8,7 @@ An AI-powered task scheduling application that integrates with Google Calendar a
 - **Smart Scheduling**: Automatically finds available time slots in your calendar
 - **Google Calendar Integration**: Reads existing events and creates new ones
 - **OpenAI Integration**: Powered by GPT models for intelligent task understanding
+- **Voice Input**: Tap the mic, speak a command, and the AI schedules it — powered by OpenAI Whisper
 - **Task Management**: Track tasks by priority, deadline, and status
 - **Duration Estimation**: AI estimates how long tasks will take
 - **SQLite Storage**: All data persisted locally
@@ -87,24 +88,15 @@ The application will be available at `http://localhost:3000`
 3. **Answer Questions**: The AI will ask about priority, deadline, etc.
 4. **Automatic Scheduling**: Tasks are automatically scheduled to your calendar
 
-### Example Conversations
+### Voice Input
 
-**Simple Task:**
-```
-You: I need to review the marketing proposal
-AI: I can help you schedule that! A few questions:
-    1. How important is this task? (low/medium/high)
-    2. When would you like to finish this by?
-    3. Any preferred start date?
-```
+1. Click the microphone button next to the text input
+2. Grant microphone permission when prompted
+3. Speak your scheduling command
+4. Click the mic button again to stop recording
+5. The audio is transcribed via OpenAI Whisper and sent to the AI agent automatically
 
-**Task with URL:**
-```
-You: I need to read this whitepaper: https://example.com/paper.pdf
-AI: I'll help you schedule time to read that whitepaper.
-    Based on typical whitepapers, this might take 1-2 hours.
-    When would you like to complete this?
-```
+Voice commands work identically to typed messages — the transcript is fed directly into the same chat pipeline.
 
 **Quick Task:**
 ```
@@ -112,7 +104,7 @@ You: Schedule a 30-minute coffee break tomorrow afternoon
 AI: I'll find a 30-minute slot tomorrow afternoon and add it to your calendar.
 ```
 
-## API Endpoints
+## API Endpoints - WIP
 
 ### Chat
 - `POST /api/chat` - Send a message to the AI
@@ -125,6 +117,9 @@ AI: I'll find a 30-minute slot tomorrow afternoon and add it to your calendar.
 - `POST /api/tasks` - Create and schedule a task
 - `PATCH /api/tasks/:id` - Update a task
 - `DELETE /api/tasks/:id` - Delete a task
+
+### Voice
+- `POST /api/transcribe` - Transcribe audio to text (multipart/form-data, field: `audio`)
 
 ### Authentication
 - `GET /api/auth/google` - Get Google OAuth URL
@@ -144,7 +139,8 @@ AI: I'll find a 30-minute slot tomorrow afternoon and add it to your calendar.
 │   ├── routes/          # API routes
 │   │   └── api.ts
 │   ├── services/        # External services
-│   │   └── calendar.ts
+│   │   ├── calendar.ts
+│   │   └── speech.ts
 │   ├── types/           # TypeScript types
 │   │   └── index.ts
 │   └── server.ts        # Main server
@@ -187,6 +183,7 @@ AI: I'll find a 30-minute slot tomorrow afternoon and add it to your calendar.
 - [ ] Task dependencies
 - [ ] Web search integration
 - [ ] Notifications system
+- [ ] Text-to-speech responses
 
 ## License
 
